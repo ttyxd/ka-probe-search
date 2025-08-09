@@ -18,15 +18,14 @@ void search_handle_success(search_state_t *state) {
     state->retry_count = 0;
 
     if (state->is_exponential_phase) {
-        // continue doubling the probe interval as long as the range is wide enough.
-        if (state->high >= 2 * state->low) {
-            state->current_probe_interval = 2 * state->low;
-        } else {
-            // the range is too narrow, switch to a binary search.
-            printf("[SEARCH] Switching to Binary Search phase.\n");
-            state->is_exponential_phase = 0;
-            state->current_probe_interval = state->low + (state->high - state->low) / 2;
+        // keep doubling the probe to find the failure point.
+        state->current_probe_interval = 2 * state->low;
+        
+        // safety rail to avoid probing past the absolute max.
+        if (state->current_probe_interval > state->high) {
+            state->current_probe_interval = state->high;
         }
+
     } else { // binary search phase
         state->current_probe_interval = state->low + (state->high - state->low) / 2;
     }
@@ -52,7 +51,8 @@ void search_handle_failure(search_state_t *state) {
         state->retry_count = 0;
 
         if (state->is_exponential_phase) {
-            printf("[SEARCH] Switching to Binary Search phase after failure.\n");
+            // overshoot detected, switch to binary search.
+            printf("[SEARCH] Switching to Binary Search phase after overshooting.\n");
             state->is_exponential_phase = 0;
         }
 
